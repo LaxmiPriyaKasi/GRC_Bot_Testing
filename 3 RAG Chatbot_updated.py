@@ -1,6 +1,6 @@
 # Databricks notebook source
 # DBTITLE 1,Install Dependencies
-# MAGIC %pip install mlflow==2.10.1 langchain==0.1.5 databricks-vectorsearch==0.22 databricks-sdk==0.18.0 mlflow[databricks]
+# MAGIC %pip install mlflow==2.14.3 langchain==0.1.5 databricks-vectorsearch==0.22 databricks-sdk==0.18.0 mlflow[databricks]
 # MAGIC dbutils.library.restartPython()
 
 # COMMAND ----------
@@ -9,10 +9,11 @@
 import os
 
 host = "https://" + spark.conf.get("spark.databricks.workspaceUrl")
+
 os.environ['DATABRICKS_TOKEN'] = dbutils.secrets.get(scope ="access-token", key = "my-token")
 
 index_name="llm.rag.docs_idx"
-host = "https://" + spark.conf.get("spark.databricks.workspaceUrl")
+#host = "https://" + spark.conf.get("spark.databricks.workspaceUrl")
 
 VECTOR_SEARCH_ENDPOINT_NAME="grc_vector_search"
 
@@ -49,12 +50,24 @@ from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
 from langchain_community.chat_models import ChatDatabricks
 
-chat_model = ChatDatabricks(endpoint="databricks-dbrx-instruct", max_tokens = 200)
+chat_model = ChatDatabricks(endpoint="databricks-dbrx-instruct", max_tokens = 500)
 
-TEMPLATE = """You are an expert in ISO standards and compliance. Based on the provided ISO document excerpts, answer the following question using specific information from the text. Provide concise, accurate, and factual answers, and cite the section or clause of the ISO standard where the information is found. If the answer is not directly available in the provided text, respond with 'Information not available.'.  Provide all answers only in English.
-use the following context: {context}
-Question: {question}
-Answer:
+TEMPLATE = """### Instruction ###
+You are an AI language model designed to function as a specialized Retrieval-Augmented Generation (RAG) assistant. Your role is to assist users with questions specifically related to ISO 27001 Information Security Management System and ISO 42001 AI Management System, using information retrieved directly from the provided uploaded documents. The document context, including relevant clauses and sections, will be provided in {context}.
+
+When generating responses, prioritize correctness and ensure that answers are:
+Grounded in the specific context of the uploaded documents, with clear references to clauses, controls, and policies (including their numbers) where applicable.
+Accurate, relevant, and detailed, closely following the structure and terminology used in the documents, while ensuring responses are clear and accessible to all audiences.
+For each user query:
+Cite the relevant ISO 27001 or 42001 clause, policy, or control number that applies, explaining it in detail for full understanding.
+
+Where necessary, add context or reasoning to clarify how the specific parts of the standards apply. Avoid redundancy but expand on key points to ensure thorough understanding. All answers should be well-aligned with the exact provisions and requirements laid out in the ISO standards in the uploaded documents.
+### Context ###
+{context}
+### Input ###
+{question}
+### Output ###
+
 """
 prompt = PromptTemplate(template=TEMPLATE, input_variables=["context", "question"])
 
@@ -70,7 +83,7 @@ chain = RetrievalQA.from_chain_type(
 # COMMAND ----------
 
 # DBTITLE 1,Test Langchain
-question = {"query": "What are the key requirements for maintaining quality management documentation?"}
+question = {"query": "How does ISO 42001 address the issue of AI bias?"}
 answer = chain.invoke(question)
 print(answer)
 
@@ -82,7 +95,7 @@ import mlflow
 import langchain
 
 mlflow.set_registry_uri("databricks-uc")
-model_name = "llm.rag.chatbot"
+model_name = "llm.rag.chatbotv2"
 
 with mlflow.start_run(run_name="appliance_chatbot_run") as run:
     signature = infer_signature(question, answer)
@@ -99,7 +112,3 @@ with mlflow.start_run(run_name="appliance_chatbot_run") as run:
         input_example=question,
         signature=signature
     )
-
-# COMMAND ----------
-
-
