@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"  # Expose frontend on port 3000
+    depends_on:
+      - backend       # Ensure backend service is started first
+    environment:
+      - BACKEND_URL=http://backend:8000/predict  # URL for backend API
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"  # Expose backend on port 8000
+    volumes:
+      - ./backend:/app
+    environment:
+      - MODULE_NAME=app.main
+      - PORT=8000
